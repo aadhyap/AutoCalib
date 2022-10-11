@@ -48,12 +48,13 @@ def correspondance():
 
 	count = 0
 	V = []
+	all_h = []
 	for filename in allimgs:
 		img = cv2.imread(filename) 
 		gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 		ret, corners = cv2.findChessboardCorners(gray,(grida, gridb), cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE)
 
-		all_h = []
+		
 
 		#ref: https://learnopencv.com/camera-calibration-using-opencv/
 		if ret == True:
@@ -71,8 +72,7 @@ def correspondance():
 			Y = worldY
 
 			curImg = imgPts[count] #every image
-			print("Corners ")
-			print(corners)
+		
 		
 			#choose4pts 
 			chosenWorld = [[worldX[0][0], worldY[0][0]], [worldX[1][0], worldY[1][0]], [worldX[0][1], worldY[0][1]], [worldX[1][1], worldY[1][1]]]
@@ -89,6 +89,7 @@ def correspondance():
 
 			h = cv2.getPerspectiveTransform(chosenWorld, chosenImg)
 			all_h.append(h)
+
 
 			v12 = getvij(h, 0,1)
 			v11 = getvij(h, 0,0)
@@ -113,17 +114,60 @@ def correspondance():
 	B = getBigB(b)
 
 
+
+
 	
 	A, lam = intparameters(b)
 
+	all_R = []
 	for i in range(len(all_h)):
-		R = getRT(A, all_h[i], lam)
-		print(R)
 
+		R = getRT(A, all_h[i], lam)
+		all_R.append(R)
+
+	print("All R ")
+	print(all_R)
+
+
+	alpha  = A[0][0]
+	beta = A[1][1]
+	u0 = A[0][2]
+	v0 = A[1][2]
 	#centerDx, centerDy = minimize(A[0][0], A[1][1], A[0][2], A[1][2]) #alpha, beta, u0, v0
 
-
+	
 	k = [0,0]
+	for i in range(len(100)):
+		k1 = k[0]
+		k2 = k[1]
+
+		x = u0 + alpha * changedX
+		y = v0 + Beta * changedY 
+		changedX = x + x*(k1*(x**2  + y**2 ) + k2*(x**2 + y ** 2) ** 2)
+		changedY = y + y*((k1 * (x**2 + y ** 2) + k2*(x**2 + y**2)) ** 2) 
+
+		
+
+
+		topl = (x - u0) * (x ** 2 + y**2 )
+		topr = (x - u0) * ((x ** 2 + y** 2)**2)
+		botl = (y - v0) * (x**2 + y ** 2)
+		botr = (y - v0) * ((x**2  + y **2 ) ** 2)
+
+		D = np.array([topl, topr], [botl, botr])
+
+		d = np.array([(changedX  - u0), (changedY - Y)])
+
+		k = np.linalg.inv(np.float32(np.dot(transpose(D), D) )) * transpose(D) * d 
+
+		print("K values ")
+		print(k)
+
+		
+
+
+
+
 
 	#b = littleb(V)
 	'''
@@ -196,9 +240,6 @@ def getRT(A, h, lam):
 	r1 = np.absolute(np.dot(np.dot(lam, invA), h1))
 	r2 = np.absolute(np.dot(np.dot(lam, invA), h2))
 
-	print("r1 ", r1)
-	print("r2 ", r2)
-
 	r3 = np.cross(r1, r2)
 	t = np.dot(np.dot(lam, invA), h3)
 
@@ -207,14 +248,13 @@ def getRT(A, h, lam):
 	print("len of R ", R)
 	R = np.array([r1, r2, r3, t])
 	R.reshape(4,-1)
-	print("AFTER RESHAPE ", R)
+	
 
 
 	return R
 
-	
-#def minimize(alpha, beta, u0, v0):
-	#u = u0 + alpha *
+
+
 
 
 correspondance()
